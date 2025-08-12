@@ -1,0 +1,56 @@
+# This workflow name will appear in the GitHub Actions tab.
+name: Hello pring Cloud CI/CD Pipeline
+
+# This section defines when the workflow should run.
+# It will run on every push to the 'master' branch.
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+# A job is a set of steps that run on a runner.
+jobs:
+  build:
+    # We use a Ubuntu runner to execute the steps.
+    runs-on: ubuntu-latest
+    
+    # These steps define the actual work to be done.
+    steps:
+    
+    # Step 1: Checkout the repository code.
+    # This action clones your repository into the runner's workspace.
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Step 2: Set up Java environment.
+    # Spring Boot projects require a specific version of Java.
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven' # Caches Maven dependencies to speed up subsequent builds.
+
+    # Step 3: Build the project with Maven.
+    # The 'test' goal will compile the code and run all unit tests.
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+    
+    # Step 4: (Optional) Dockerize the application.
+    # This step is highly recommended for modern deployments.
+    # It builds a Docker image of your Spring Cloud app.
+    # We'll use a placeholder for now, as it requires a Dockerfile.
+    - name: Docker build
+      run: |
+        echo "Docker build step goes here."
+        # Example: docker build -t my-app:latest .
+        
+    # Step 5: (Optional) Deploy the application.
+    # This step would push your Docker image to a registry
+    # and deploy it to a cloud environment (e.g., Kubernetes, Cloud Run).
+    - name: Deploy to Cloud
+      if: github.ref == 'refs/heads/master'
+      run: |
+        echo "Deployment step goes here."
+        # This would involve using cloud provider CLI tools (e.g., gcloud).
