@@ -61,7 +61,7 @@ jobs:
     - name: Deploy to GCP
       uses: appleboy/ssh-action@v1.0.0
       with:
-        # Use the username you set up for the SSH key on GCP.
+        # Use the username you set up for the SSH key on GCP .
         username: pratapsphal
         host: ${{ env.EXTERNAL_IP }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
