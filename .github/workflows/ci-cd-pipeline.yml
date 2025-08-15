@@ -88,3 +88,4 @@ jobs:
 
           echo "Starting new service..."
           sudo systemctl start springboot-app.service
+		  # Re-triggering pipeline
