@@ -50,22 +50,14 @@ jobs:
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-    # A new step to find the JAR file's exact path and store it in an environment variable.
-    - name: Find JAR File
-      id: find_jar
-      run: |
-        JAR_PATH=$(find . -name "spring-boot-app.jar")
-        echo "Found JAR file at: $JAR_PATH"
-        echo "JAR_PATH=$JAR_PATH" >> $GITHUB_ENV
     
     # Use gcloud to scp and ssh in a single step, ensuring non-interactive execution.
     - name: Deploy to GCP
       run: |
         echo "Starting deployment to GCP..."
         
-        # Use gcloud compute scp to copy the JAR file using the path we found.
-        gcloud compute scp ${{ env.JAR_PATH }} ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
+        # Use gcloud compute scp to copy the JAR file using the simplest possible path.
+        gcloud compute scp spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
         --project=${{ env.GCP_PROJECT_ID }} \
         --zone=${{ env.GCP_ZONE }} \
         --quiet
