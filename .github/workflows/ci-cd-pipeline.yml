@@ -8,7 +8,7 @@ on:
     branches:
       - master
 
-# A workflow is made up of one or more jobs that run in parallel by default.
+# A workflow is made up of one or more jobs that run in parallel by default .
 jobs:
   # The 'build' job is responsible for compiling your Spring Boot application.
   build:
