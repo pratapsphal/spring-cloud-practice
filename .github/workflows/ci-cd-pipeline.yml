@@ -1,40 +1,28 @@
-# Name of your workflow. This will appear in the GitHub Actions UI.
+# Name of your workflow.
 name: CI/CD Pipeline
 
 # This section specifies when the workflow should run.
-# It will trigger automatically whenever code is pushed to the 'master' branch.
 on:
   push:
     branches:
       - master
 
-# A workflow is made up of one or more jobs that run in parallel by default.
+# A workflow is made up of one or more jobs.
 jobs:
   # The 'build' job is responsible for compiling your Spring Boot application.
   build:
-    # This specifies the operating system the job will run on.
     runs-on: ubuntu-latest
-
-    # These are the steps the 'build' job will follow.
     steps:
-    # The 'checkout' action downloads your repository's code onto the runner.
     - name: Checkout code
       uses: actions/checkout@v4
-
-    # The 'setup-java' action sets up the specified JDK version.
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: 'maven'
-
-    # This step runs the Maven command to build your application and create the JAR file.
     - name: Build with Maven
       run: mvn -B package --file pom.xml
-
-    # This action uploads the generated JAR file as an artifact.
-    # Artifacts are a way to share files between jobs in a workflow.
     - name: Upload JAR artifact
       uses: actions/upload-artifact@v4
       with:
@@ -43,44 +31,49 @@ jobs:
 
   # The 'deploy' job will deploy the artifact from the 'build' job to your GCP instance.
   deploy:
-    # The 'needs: build' key ensures that this job only runs after the 'build' job has successfully completed.
     needs: build
     runs-on: ubuntu-latest
-
-    # Environment variables are used here to store your GCP configuration.
+    
     env:
-      GCP_PROJECT_ID: unique-spirit-469000-h2
       GCP_INSTANCE_NAME: instance-springboot-app-41082025-0718
       GCP_ZONE: us-central1-c
-
-    # These are the steps for the 'deploy' job.
+      
     steps:
-    # This action downloads the JAR file that was uploaded by the 'build' job.
     - name: Download JAR artifact
       uses: actions/download-artifact@v4
       with:
         name: spring-boot-app
-
-    # This action authenticates your workflow with your Google Cloud account using the secret you created.
-    # This is what allows subsequent gcloud commands to work.
+    
+    # The 'google-github-actions/auth' action is still needed for 'gcloud' commands.
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    # This step uses the gcloud compute scp command to execute commands on your instance.
-    - name: Deploy to GCP
+    # Get the external IP address of your GCP instance.
+    - name: Get Instance External IP
+      id: get_ip
       run: |
-        # Use gcloud compute scp with --quiet to securely copy the JAR file to the instance.
-        # This prevents it from prompting for user input.
-        gcloud compute scp spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
-        --project=${{ env.GCP_PROJECT_ID }} \
-        --zone=${{ env.GCP_ZONE }} \
-        --quiet
+        EXTERNAL_IP=$(gcloud compute instances describe ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+        echo "EXTERNAL_IP=$EXTERNAL_IP" >> $GITHUB_ENV
+    
+    # Use the 'appleboy/ssh-action' for reliable deployment.
+    - name: Deploy to GCP
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        # Use the username you set up for the SSH key on GCP.
+        username: pratapsphal
+        host: ${{ env.EXTERNAL_IP }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          echo "Stopping existing service..."
+          sudo systemctl stop springboot-app.service || true
 
-        # Use gcloud compute ssh with --quiet to run commands on the instance.
-        gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
-        --project=${{ env.GCP_PROJECT_ID }} \
-        --zone=${{ env.GCP_ZONE }} \
-        --command="sudo systemctl stop springboot-app.service || true; sudo systemctl start springboot-app.service" \
-        --quiet
+          echo "Removing old application jar..."
+          sudo rm -f /var/www/app/spring-boot-app.jar
+
+          echo "Transferring new application jar..."
+          sudo mv spring-boot-app.jar /var/www/app/
+
+          echo "Starting new service..."
+          sudo systemctl start springboot-app.service
