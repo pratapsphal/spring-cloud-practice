@@ -40,10 +40,12 @@ jobs:
       GCP_ZONE: us-central1-c
       
     steps:
+    # This change ensures the JAR file is downloaded to the current working directory.
     - name: Download JAR artifact
       uses: actions/download-artifact@v4
       with:
         name: spring-boot-app
+        path: .
     
     # This action authenticates your workflow with your Google Cloud account.
     - name: Authenticate to GCP
@@ -51,10 +53,7 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
     
-    # A new step to change the working directory to where the artifact is.
-    - name: Change to Artifact Directory
-      run: cd spring-boot-app
-    
+    # We've removed the unnecessary 'cd' command.
     # Use gcloud to scp and ssh in a single step, ensuring non-interactive execution.
     - name: Deploy to GCP
       run: |
