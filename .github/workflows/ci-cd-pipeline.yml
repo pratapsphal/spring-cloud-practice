@@ -1,35 +1,33 @@
-# Name of your workflow.
 name: CI/CD Pipeline
 
-# This section specifies when the workflow should run.
 on:
   push:
     branches:
       - master
 
-# A workflow is made up of one or more jobs.
 jobs:
-  # The 'build' job is responsible for compiling your Spring Boot application.
   build:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: 'maven'
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml
+
+    - name: Build with Maven (fixed jar name)
+      run: mvn -B package --file pom.xml -DfinalName=spring-boot-app
+
     - name: Upload JAR artifact
       uses: actions/upload-artifact@v4
       with:
         name: spring-boot-app
-        path: target/*.jar
+        path: target/spring-boot-app.jar
 
-  # The 'deploy' job will deploy the artifact from the 'build' job to your GCP instance.
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -45,27 +43,32 @@ jobs:
       with:
         name: spring-boot-app
     
-    # This action authenticates your workflow with your Google Cloud account.
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
     
-    # Use gcloud to scp and ssh in a single step, ensuring non-interactive execution.
+    - name: Ensure target folder exists on VM
+      run: |
+        echo "Ensuring /var/www/app/ exists on remote VM..."
+        gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
+        --project=${{ env.GCP_PROJECT_ID }} \
+        --zone=${{ env.GCP_ZONE }} \
+        --command="sudo mkdir -p /var/www/app && sudo chown \$USER /var/www/app" \
+        --quiet
+    
     - name: Deploy to GCP
       run: |
         echo "Starting deployment to GCP..."
         
-        # We are now explicitly referencing the file inside the subdirectory
-        # created by the download-artifact action.
-        gcloud compute scp spring-boot-app/spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
+        gcloud compute scp spring-boot-app.jar \
+        ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
         --project=${{ env.GCP_PROJECT_ID }} \
         --zone=${{ env.GCP_ZONE }} \
         --quiet
         
         echo "JAR file transferred successfully. Restarting service..."
 
-        # Use gcloud compute ssh to run commands to restart the service.
         gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
         --project=${{ env.GCP_PROJECT_ID }} \
         --zone=${{ env.GCP_ZONE }} \
