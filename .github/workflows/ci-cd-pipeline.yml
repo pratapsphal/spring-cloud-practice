@@ -62,29 +62,23 @@ jobs:
         name: spring-boot-app
 
     # This action authenticates your workflow with your Google Cloud account using the secret you created.
+    # This is what allows subsequent gcloud commands to work.
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    # The 'ssh' action connects to your GCP instance and runs the specified commands.
+    # This step uses the gcloud compute ssh command to execute commands on your instance.
     - name: Deploy to GCP
-      uses: google-github-actions/ssh@v1
-      with:
-        instance_name: ${{ env.GCP_INSTANCE_NAME }}
-        zone: ${{ env.GCP_ZONE }}
-        # The 'command' block contains the multi-line script to run on your instance.
-        # All lines here are correctly indented to avoid syntax errors.
-        command: |
-          # The following assumes your Spring Boot app is running as a systemd service.
-          echo "Stopping existing service..."
-          sudo systemctl stop springboot-app.service || true
+      run: |
+        # Use gcloud compute scp to securely copy the JAR file to the instance.
+        gcloud compute scp spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
+        --project=${{ env.GCP_PROJECT_ID }} \
+        --zone=${{ env.GCP_ZONE }}
 
-          echo "Removing old application jar..."
-          sudo rm -f /var/www/app/spring-boot-app.jar
+        # Use gcloud compute ssh to run commands on the instance to stop the service and start it again.
+        gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
+        --project=${{ env.GCP_PROJECT_ID }} \
+        --zone=${{ env.GCP_ZONE }} \
+        --command="sudo systemctl stop springboot-app.service || true; sudo systemctl start springboot-app.service"
 
-          echo "Transferring new application jar..."
-          sudo mv spring-boot-app.jar /var/www/app/
-
-          echo "Starting new service..."
-          sudo systemctl start springboot-app.service
