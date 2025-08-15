@@ -8,7 +8,7 @@ on:
     branches:
       - master
 
-# A workflow is made up of one or more jobs that run in parallel by default .
+# A workflow is made up of one or more jobs that run in parallel by default.
 jobs:
   # The 'build' job is responsible for compiling your Spring Boot application.
   build:
@@ -68,17 +68,19 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    # This step uses the gcloud compute ssh command to execute commands on your instance.
+    # This step uses the gcloud compute scp command to execute commands on your instance.
     - name: Deploy to GCP
       run: |
-        # Use gcloud compute scp to securely copy the JAR file to the instance.
+        # Use gcloud compute scp with --quiet to securely copy the JAR file to the instance.
+        # This prevents it from prompting for user input.
         gcloud compute scp spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
         --project=${{ env.GCP_PROJECT_ID }} \
-        --zone=${{ env.GCP_ZONE }}
+        --zone=${{ env.GCP_ZONE }} \
+        --quiet
 
-        # Use gcloud compute ssh to run commands on the instance to stop the service and start it again.
+        # Use gcloud compute ssh with --quiet to run commands on the instance.
         gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
         --project=${{ env.GCP_PROJECT_ID }} \
         --zone=${{ env.GCP_ZONE }} \
-        --command="sudo systemctl stop springboot-app.service || true; sudo systemctl start springboot-app.service"
-
+        --command="sudo systemctl stop springboot-app.service || true; sudo systemctl start springboot-app.service" \
+        --quiet
