@@ -64,7 +64,8 @@ jobs:
         echo "Starting deployment to GCP..."
         
         # Use gcloud compute scp to copy the JAR file to the instance.
-        gcloud compute scp spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
+        # We've updated the path to correctly locate the downloaded JAR.
+        gcloud compute scp spring-boot-app/spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
         --project=${{ env.GCP_PROJECT_ID }} \
         --zone=${{ env.GCP_ZONE }} \
         --quiet
