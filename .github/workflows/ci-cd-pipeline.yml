@@ -75,6 +75,7 @@ jobs:
         instance_name: ${{ env.GCP_INSTANCE_NAME }}
         zone: ${{ env.GCP_ZONE }}
         command: |
+          # retriger the pipeline 	
           # The following assumes your Spring Boot app is running as a systemd service.
           # If not, you might need to find and kill the process.
           echo "Stopping existing service..."
@@ -88,4 +89,4 @@ jobs:
 
           echo "Starting new service..."
           sudo systemctl start springboot-app.service
-		  # Re-triggering pipeline
+		 
