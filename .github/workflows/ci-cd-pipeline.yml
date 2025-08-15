@@ -51,17 +51,14 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
     
-    # A new step to change the working directory to where the artifact is.
-    - name: Change to Artifact Directory
-      run: cd spring-boot-app
-    
     # Use gcloud to scp and ssh in a single step, ensuring non-interactive execution.
     - name: Deploy to GCP
       run: |
         echo "Starting deployment to GCP..."
         
-        # Use gcloud compute scp to copy the JAR file using the simplest possible path.
-        gcloud compute scp spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
+        # We are now explicitly referencing the file inside the subdirectory
+        # created by the download-artifact action.
+        gcloud compute scp spring-boot-app/spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
         --project=${{ env.GCP_PROJECT_ID }} \
         --zone=${{ env.GCP_ZONE }} \
         --quiet
