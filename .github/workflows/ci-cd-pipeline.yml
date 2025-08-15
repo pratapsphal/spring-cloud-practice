@@ -35,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
+      GCP_PROJECT_ID: unique-spirit-469000-h2
       GCP_INSTANCE_NAME: instance-springboot-app-41082025-0718
       GCP_ZONE: us-central1-c
       
@@ -44,36 +45,31 @@ jobs:
       with:
         name: spring-boot-app
     
-    # The 'google-github-actions/auth' action is still needed for 'gcloud' commands.
+    # This action authenticates your workflow with your Google Cloud account.
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    # Get the external IP address of your GCP instance.
-    - name: Get Instance External IP
-      id: get_ip
-      run: |
-        EXTERNAL_IP=$(gcloud compute instances describe ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-        echo "EXTERNAL_IP=$EXTERNAL_IP" >> $GITHUB_ENV
-    
-    # Use the 'appleboy/ssh-action' for reliable deployment.
+    # Use gcloud to scp and ssh in a single step, ensuring non-interactive execution.
     - name: Deploy to GCP
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        # Use the username you set up for the SSH key on GCP.
-        username: pratapsphal
-        host: ${{ env.EXTERNAL_IP }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          echo "Stopping existing service..."
-          sudo systemctl stop springboot-app.service || true
+      run: |
+        echo "Starting deployment to GCP..."
+        
+        # Use gcloud compute scp to copy the JAR file to the instance.
+        gcloud compute scp spring-boot-app.jar ${{ env.GCP_INSTANCE_NAME }}:/var/www/app/ \
+        --project=${{ env.GCP_PROJECT_ID }} \
+        --zone=${{ env.GCP_ZONE }} \
+        --quiet
+        
+        echo "JAR file transferred successfully. Restarting service..."
 
-          echo "Removing old application jar..."
-          sudo rm -f /var/www/app/spring-boot-app.jar
-
-          echo "Transferring new application jar..."
-          sudo mv spring-boot-app.jar /var/www/app/
-
-          echo "Starting new service..."
-          sudo systemctl start springboot-app.service
+        # Use gcloud compute ssh to run commands to restart the service.
+        # This will use the key management handled automatically by gcloud.
+        gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
+        --project=${{ env.GCP_PROJECT_ID }} \
+        --zone=${{ env.GCP_ZONE }} \
+        --command="sudo systemctl stop springboot-app.service || true; sudo systemctl start springboot-app.service" \
+        --quiet
+        
+        echo "Deployment complete."
