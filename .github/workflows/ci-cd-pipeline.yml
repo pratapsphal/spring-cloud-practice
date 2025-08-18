@@ -63,7 +63,7 @@ jobs:
         --command="sudo mkdir -p /var/www/app && sudo chown \$USER /var/www/app" \
         --quiet
     
-    - name: Deploy to GCP
+    - name: Deploy to GCP and Activate 'gcp' Profile
       run: |
         echo "Starting deployment to GCP..."
         
@@ -75,10 +75,11 @@ jobs:
         
         echo "JAR file transferred successfully. Restarting service..."
 
+        # This is the updated command to set the active profile
         gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
         --project=${{ env.GCP_PROJECT_ID }} \
         --zone=${{ env.GCP_ZONE }} \
-        --command="sudo systemctl stop springboot-app.service || true; sudo systemctl start springboot-app.service" \
+        --command="sudo systemctl stop springboot-app.service || true; sudo SPRING_PROFILES_ACTIVE=gcp systemctl start springboot-app.service" \
         --quiet
         
         echo "Deployment complete."
